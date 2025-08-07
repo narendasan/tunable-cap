@@ -1,6 +1,7 @@
-from typing import List, Dict
+from typing import List, Dict, Any
 from PIL import Image
 import requests
+import transformers
 from transformers import AutoProcessor, AutoModel, Qwen2_5_VLForConditionalGeneration
 import torch
 import ale_py
@@ -10,7 +11,7 @@ from qwen_vl_utils import process_vision_info
 
 gymnasium.register_envs(ale_py)
 
-MODEL = "smolagents/Qwen2.5-VL-3B-Instruct-Agentic"
+MODEL = "nvidia/Cosmos-Reason1-7B"
 
 
 def load_action_space_dict(csv_path):
@@ -35,34 +36,25 @@ def load_action_space_dict(csv_path):
         print(f"An error occurred while reading the file: {e}")
         return {}
 
-class EagleGameActor:
-    def __init__(self, system_prompt="You are tasked to generate code to play a game based on video", device="cuda"):
+class GameActor:
+    def __init__(self, system_prompt="You are a helpful assistant. Answer the question in the following format: <think>\nyour reasoning\n</think>\n\n<answer>\nyour answer\n</answer>. You are tasked to generate code to play a game based on videos you watch", device="cuda"):
         self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(MODEL, trust_remote_code=True, torch_dtype=torch.bfloat16)
         self.processor = AutoProcessor.from_pretrained(MODEL, trust_remote_code=True, use_fast=True)
         self.processor.tokenizer.padding_side = "left"
+        self.generation_config = transformers.GenerationConfig(
+            do_sample=True,
+            max_new_tokens=4096,
+            repetition_penalty=1.05,
+            temperature=0.6,
+            top_p=0.95,
+        )
         self.device = device
         self.model = self.model.to(self.device)
         self.system_prompt = system_prompt
+        self.fps = 12
+        self.max_pixels = 1920
 
-    def question_answering(self, video_paths: List[str], prompt: str):
-        video_content = [
-            {
-                "type": "video",
-                "video": video_path,
-            } for video_path in video_paths
-        ]
-
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": self.system_prompt,
-                    },
-                ] + video_content + [{"type": "text", "text": prompt}],
-            }
-        ]
+    def _generate(self, messages: List[Dict[Any, Any]]) -> str:
         text_list = [self.processor.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
         )]
@@ -76,10 +68,44 @@ class EagleGameActor:
             #**video_kwargs,
         )
         inputs = inputs.to(self.device)
-        generated_ids = self.model.generate(**inputs, max_new_tokens=1024)
+        generated_ids = self.model.generate(**inputs, generation_config=self.generation_config)
+        generated_ids_trimmed = [
+            out_ids[len(in_ids) :]
+            for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+        ]
         output_text = self.processor.batch_decode(
-            generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
+            generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
         )
+        return output_text
+
+    def question_answering(self, video_paths: List[str], prompt: str):
+        video_content = [
+            {
+                "type": "video",
+                "video": video_path,
+                "fps": self.fps,
+                "max_pixels": self.max_pixels
+            } for video_path in video_paths
+        ]
+
+        messages = [
+            {
+                "role": "system",
+                "content": [{
+                    "type": "text",
+                    "text": self.system_prompt,
+                }],
+            }, {
+                "role": "user",
+                "content": [{
+                    "type": "text",
+                    "text": prompt
+                }] + video_content
+            }
+        ]
+
+        print(messages)
+        output_text = self._generate(messages)
         return output_text[0]
 
     def generate_gameplay_code(self, video_paths: List[str], prompt="Generate Python code to play this game based on the video."):
@@ -92,32 +118,20 @@ class EagleGameActor:
 
         messages = [
             {
+                "role": "system",
+                "content": [{
+                    "type": "text",
+                    "text": self.system_prompt,
+                }],
+            }, {
                 "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": self.system_prompt,
-                    },
-                ] + video_content + [{"type": "text", "text": prompt}],
+                "content": [{
+                    "type": "text",
+                    "text": prompt
+                }] + video_content
             }
         ]
-        text_list = [self.processor.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
-        )]
-        image_inputs, video_inputs = process_vision_info(messages)
-        inputs = self.processor(
-            text=text_list,
-            images=image_inputs,
-            videos=video_inputs,
-            return_tensors="pt",
-            padding=True,
-            #video_kwargs=video_kwargs
-        )
-        inputs = inputs.to(self.device)
-        generated_ids = self.model.generate(**inputs, max_new_tokens=1024)
-        output_text = self.processor.batch_decode(
-            generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False
-        )
+        output_text = self._generate(messages)
         return output_text[0]
 
 # Example usage:
@@ -163,48 +177,44 @@ action_space = load_action_space_dict("./Breakout-v5-action_space.csv")
 actions = [[a, act["description"]] for a, act in action_space.items()]
 actions_str = str(actions)
 
-system_prompt = "You are tasked to generate code to play a game to maximize the scorebased on provided videos."
-system_prompt += "Your available actions are given below in the format [[<ACTION_NAME>, <DESCRIPTION>]]: " + actions_str
-system_prompt += """ Policies should take the form of a python function that takes an series
-of 10 numpy arrays in a list which contains a visual observation of the game over 10 frames as input and
-returns an string action_name from the available actions to take in the next frame. There should be a case for each
-action in the action space in your function. All of the code necessary must be written by you, you cannot
-call any external functions other than numpy or assume implementation. You cannot assume anything about the configuration of the game.
-No placeholders are allowed. You must be able to handle all possible game states. It is suggested that you use information across
-multiple frames to make your decisions"""
+system_prompt = "You are a helpful assistant. Your job is to figure out how to play a game based on provided videos. Answer the question in the following format: <think>\nyour reasoning\n</think>\n\n<answer>\nyour answer\n</answer>"
 
-actor = EagleGameActor(
+actor = GameActor(
     system_prompt=system_prompt
 )
 
-rollouts = ["./policy_rollouts_Breakout-v5/random_policy-episode-{}.mp4".format(i) for i in range(0, 50, 10)]
+rollouts = ["./policy_rollouts_Breakout-v5/random_policy-episode-{}.mp4".format(i) for i in range(0, 50, 30)]
 visual_recognition_prompt = "Identify all the key elements in this image. Be specific. Use at most 100 words." #ATARI-GPT
-strategy_recognition_prompt = "Describe the ideal strategy if you were playing this game. Be specific. Use at most 100 words." #ATARI-GPT
 visual_question_answer = actor.question_answering(rollouts, visual_recognition_prompt)
+print(visual_question_answer)
+breakpoint()
+strategy_recognition_prompt = "Describe the ideal strategy if you were playing this game. Be specific. Use at most 100 words." #ATARI-GPT
 strategy_question_answer = actor.question_answering(rollouts, strategy_recognition_prompt)
+print(strategy_question_answer)
+breakpoint()
 
-breakdown_prompt = "<PROMPT>:" + visual_recognition_prompt \
-    + "<RESPONSE>:" + visual_question_answer \
-    + "<PROMPT>:" + strategy_recognition_prompt \
-    + "<RESPONSE>:" + strategy_question_answer \
-    + """Given your analysis, decompose the different modules of software you
+breakdown_prompt = """Given your analysis, decompose the different modules of software you
     would need to build to implement your strategy to play the game and get the highest
     score. Each module should have a clear single role. Present the design as a ordered
     list of modules to be built followed by a detailed specification."""
 
 breakdown_question_answer = actor.question_answering(rollouts, breakdown_prompt)
-
 print(breakdown_question_answer)
+breakpoint()
 
-code_prompt = "<PROMPT>:" + visual_recognition_prompt \
-    + "<RESPONSE>:" + visual_question_answer \
-    + "<PROMPT>:" + strategy_recognition_prompt \
-    + "<RESPONSE>:" + strategy_question_answer \
-    + breakdown_question_answer \
-    + """Given your plan, write the python code that takes 10
+code_prompt = """Given your plan, write the python code that plays the game to maximize the score. The code should take 10
     frames of the game provided as a grayscale numpy array shaped
     Box(0, 255, (210, 160), np.uint8) for each frame as input and
-    returns the action_name to take in the next time step."""
+    returns the action_name to take in the next time step.""" \
+    + "You are tasked to generate code to play a game to maximize the score based on provided videos." \
+    + "Your available actions are given below in the format [[<action_name>, <description>]]: " + actions_str \
+    + """ Policies should take the form of a python function that takes an series
+    of 10 numpy arrays in a list which contains a visual observation of the game over 10 frames as input and
+    returns an string action_name from the available actions to take in the next frame. There should be a case for each
+    action in the action space in your function. All of the code necessary must be written by you, you cannot
+    call any external functions other than numpy or assume implementation. You cannot assume anything about the configuration of the game.
+    No placeholders are allowed. You must be able to handle all possible game states. It is suggested that you use information across
+    multiple frames to make your decisions"""
 
 code_prompt += "Hint: You cannot identify the ball from a fully white pixel"
 policy = actor.generate_gameplay_code(rollouts, prompt=code_prompt)

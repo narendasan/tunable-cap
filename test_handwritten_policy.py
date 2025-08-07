@@ -32,51 +32,21 @@ def load_action_space_dict(csv_path):
         print(f"An error occurred while reading the file: {e}")
         return {}
 
-import numpy as np
+def get_ball_position(frames):
+    print(frames[-1].shape)
+    #frames = np.array([np.mean(frame, axis=-1) for frame in frames])
+    print(frames[-1][-100:-1])
+    print(frames[-1][-100:-1].shape)
 
-def get_ball_position(frame):
-    # Assuming the ball is represented by a light pixel (e.g., white) against a dark background (e.g., bllack)
-    # We'll use a threshold to identify the ball
-    threshold = 128  # Adjust this value based on the actual contrast
-    ball_mask = frame > threshold
-
-    # Find the non-zero pixels (ball positions)
-    ball_positions = np.argwhere(ball_mask)
-    print(ball_positions)
-
-    # If there are multiple balls, choose the one closest to the center
-    if len(ball_positions) > 1:
-        x_positions = ball_positions[:, 1]
-        y_positions = ball_positions[:, 0]
-        center_x = int(np.mean(x_positions))
-        center_y = int(np.mean(y_positions))
-        ball_positions = [(center_x, center_y)]
-
-    return ball_positions[0] if ball_positions else None
 
 def get_paddle_position(frame):
-    # Assuming the paddle is represented by a light pixel (e.g., white) against a darker background (e.g., black)
-    # We'll use a threshold to identify the paddle
-    threshold = 128  # Adjust this value based on the actual contrast
-    paddle_mask = frame > threshold
-
-    # Find the non-zero pixels (paddle positions)
-    paddle_positions = np.argwhere(paddle_mask)
-
-    # If there are multiple paddles, choose the one closest to the center
-    if len(paddle_positions) > 1:
-        x_positions = paddle_positions[:, 1]
-        y_positions = paddle_positions[:, 0]
-        center_x = int(np.mean(x_positions))
-        center_y = int(np.mean(y_positions))
-        paddle_positions = [(center_x, center_y)]
-
-    return paddle_positions[0] if paddle_positions else None
+    # Implement logic to extract paddle position from the frame
+    pass
 
 def get_optimal_action(frames):
     # Get the ball and paddle positions
-    ball_pos = get_ball_position(frames[-1])
-    paddle_pos = get_paddle_position(frames[-1])
+    ball_pos = get_ball_position(frames)
+    paddle_pos = get_paddle_position(frames)
 
     if ball_pos is None or paddle_pos is None:
         return 'NOOP'
@@ -96,12 +66,12 @@ def get_optimal_action(frames):
 action_space = load_action_space_dict("./Breakout-v5-action_space.csv")
 
 env_name = "ALE/Breakout-v5"
-env = gymnasium.make(env_name, render_mode="rgb_array", obs_type="rgb")
+env = gymnasium.make(env_name, render_mode="rgb_array", obs_type="grayscale")
 env = gymnasium.wrappers.RecordVideo(
     env,
     episode_trigger=lambda ep: ep % 1 == 0,
     video_folder="policy_rollouts_" + env_name.split("/")[1],
-    name_prefix="test_policy"
+    name_prefix="test_handwritten_policy"
 )
 
 for e in range(10):
