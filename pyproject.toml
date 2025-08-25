@@ -20,6 +20,9 @@ dependencies = [
     "xformers @ git+https://github.com/facebookresearch/xformers.git@fde5a2fb46e3f83d73e2974a4d12caf526a4203e",
     "blake3>=1.0.5",
     "numba>=0.61.2",
+    "einops>=0.8.1",
+    "accelerate>=1.9.0",
+    "python-slugify>=8.0.4",
 ]
 
 [tool.uv]

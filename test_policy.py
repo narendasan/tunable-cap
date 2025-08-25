@@ -7,6 +7,8 @@ import ale_py
 import gymnasium
 import csv
 import numpy as np
+from breakout_utilities import *
+from _tmp_nvidia_cosmos_reason1_7b import predict_next_action
 
 gymnasium.register_envs(ale_py)
 
@@ -32,71 +34,10 @@ def load_action_space_dict(csv_path):
         print(f"An error occurred while reading the file: {e}")
         return {}
 
-import numpy as np
-
-def get_ball_position(frame):
-    # Assuming the ball is represented by a light pixel (e.g., white) against a dark background (e.g., bllack)
-    # We'll use a threshold to identify the ball
-    threshold = 128  # Adjust this value based on the actual contrast
-    ball_mask = frame > threshold
-
-    # Find the non-zero pixels (ball positions)
-    ball_positions = np.argwhere(ball_mask)
-    print(ball_positions)
-
-    # If there are multiple balls, choose the one closest to the center
-    if len(ball_positions) > 1:
-        x_positions = ball_positions[:, 1]
-        y_positions = ball_positions[:, 0]
-        center_x = int(np.mean(x_positions))
-        center_y = int(np.mean(y_positions))
-        ball_positions = [(center_x, center_y)]
-
-    return ball_positions[0] if ball_positions else None
-
-def get_paddle_position(frame):
-    # Assuming the paddle is represented by a light pixel (e.g., white) against a darker background (e.g., black)
-    # We'll use a threshold to identify the paddle
-    threshold = 128  # Adjust this value based on the actual contrast
-    paddle_mask = frame > threshold
-
-    # Find the non-zero pixels (paddle positions)
-    paddle_positions = np.argwhere(paddle_mask)
-
-    # If there are multiple paddles, choose the one closest to the center
-    if len(paddle_positions) > 1:
-        x_positions = paddle_positions[:, 1]
-        y_positions = paddle_positions[:, 0]
-        center_x = int(np.mean(x_positions))
-        center_y = int(np.mean(y_positions))
-        paddle_positions = [(center_x, center_y)]
-
-    return paddle_positions[0] if paddle_positions else None
-
-def get_optimal_action(frames):
-    # Get the ball and paddle positions
-    ball_pos = get_ball_position(frames[-1])
-    paddle_pos = get_paddle_position(frames[-1])
-
-    if ball_pos is None or paddle_pos is None:
-        return 'NOOP'
-
-    # Calculate the relative positions
-    ball_x, ball_y = ball_pos
-    paddle_x, paddle_y = paddle_pos
-
-    # Determine the action based on the relative positions
-    if ball_x < paddle_x:
-        return 'LEFT'
-    elif ball_x > paddle_x:
-        return 'RIGHT'
-    else:
-        return 'NOOP'
-
 action_space = load_action_space_dict("./Breakout-v5-action_space.csv")
 
 env_name = "ALE/Breakout-v5"
-env = gymnasium.make(env_name, render_mode="rgb_array", obs_type="rgb")
+env = gymnasium.make(env_name, render_mode="rgb_array", obs_type="grayscale")
 env = gymnasium.wrappers.RecordVideo(
     env,
     episode_trigger=lambda ep: ep % 1 == 0,
@@ -109,21 +50,21 @@ for e in range(10):
     done = False
     step = 0
 
-    while not done:
-        obs_list = []
-        for i in range(10):
-            obs, reward, terminated, truncated, info = env.step(int(action_space["NOOP"]["index"]))
-            done = terminated or truncated
-            if done:
-                break
-            obs_list.append(obs)
-            step += 1
+    obs_list = []
+    for i in range(3):
+        obs, reward, terminated, truncated, info = env.step(int(action_space["NOOP"]["index"]))
+        done = terminated or truncated
+        if done:
+            break
+        obs_list.append(obs)
+        step += 1
 
-        action = int(action_space[get_optimal_action(obs_list)]["index"])
-        #action = env.action_space.sample()
+    while not done:
+        action = int(predict_next_action(obs_list))
         print(f"Step {step}:, Action: {action}")
-        #print(int(action["index"]))
         obs, reward, terminated, truncated, info = env.step(action)
+        obs_list.pop(0)
+        obs_list.append(obs)
         done = terminated or truncated
         step += 1
 

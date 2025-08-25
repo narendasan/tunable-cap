@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Tuple
 from PIL import Image
 import requests
 from transformers import AutoProcessor, AutoModel
@@ -7,6 +7,7 @@ import ale_py
 import gymnasium
 import csv
 import numpy as np
+import functools
 
 gymnasium.register_envs(ale_py)
 
@@ -32,21 +33,73 @@ def load_action_space_dict(csv_path):
         print(f"An error occurred while reading the file: {e}")
         return {}
 
-def get_ball_position(frames):
-    print(frames[-1].shape)
-    #frames = np.array([np.mean(frame, axis=-1) for frame in frames])
-    print(frames[-1][-100:-1])
-    print(frames[-1][-100:-1].shape)
+def crop_frame(frame: np.ndarray) -> np.ndarray:
+    #vertical_crop_with_border = frame[17:-14]
+    horizontal_crop = frame[:,8:-8]
+    return horizontal_crop
+
+def get_ball_position(frame: np.ndarray) -> np.ndarray:
+    """
+    Returns an estimate of the ball position for a given frame
+    Args:
+        frame (np.ndarray): The input frame
+    Returns:
+        np.ndarray: The estimated ball position as a 2D array
+    """
+    crop = frame[93:-21]
+    row_indices, col_indices = np.nonzero(crop)
+    return np.mean(np.column_stack((row_indices, col_indices)), axis=0)
 
 
-def get_paddle_position(frame):
-    # Implement logic to extract paddle position from the frame
-    pass
+def get_paddle_position(frame: np.ndarray) -> np.ndarray:
+    """
+    Returns an estimate of the paddle position for a give frame
+    Args:
+        frame (np.ndarray): The input frame
+    Returns:
+        np.ndarray: The estimated paddle position as a 2D array
+    """
+    paddle_rows = frame[-21:-16]
+    row_indices, col_indices = np.nonzero(paddle_rows)
+    paddle = np.mean(np.column_stack((row_indices, col_indices)), axis=0)
+    return paddle
+
+def frame_differences(frames: List[np.ndarray]) -> np.ndarray:
+    """
+    Overlays the changes between consecutive frames.
+    """
+    return functools.reduce(lambda a, b: a + (frames[0] != b), frames[1:], frames[0] != frames[1])
 
 def get_optimal_action(frames):
+    import matplotlib.pyplot as plt
+    import functools
+    frame_diff = frame_differences(frames)
+    paddle_crop = frame_diff[-21:-16]
+    plt.imsave(f"paddle_diff.png", paddle_crop, cmap='gray')
     # Get the ball and paddle positions
-    ball_pos = get_ball_position(frames)
-    paddle_pos = get_paddle_position(frames)
+    frames = [crop_frame(f) for f in frames]
+    ball_pos = [get_ball_position(f) for f in frames]
+
+    paddle_pos = [get_paddle_position(f) for f in frames]
+    print(paddle_pos)
+    # 2. Unzip the coordinates into separate x and y lists
+    x_coords, y_coords = zip(*paddle_pos)
+
+    # 3. Create the scatter plot
+    plt.scatter(x_coords, y_coords, color='blue', marker='o')
+
+    # 4. Add labels and a title for clarity
+    plt.xlabel("X-axis")
+    plt.ylabel("Y-axis")
+    plt.title("Scatter Plot of Coordinates")
+    plt.grid(True) # Adds a grid for easier reading
+
+    # 5. Save the plot to a file
+    plt.savefig("scatter_plot.png")
+
+    print("Plot saved as scatter_plot.png")
+
+    breakpoint()
 
     if ball_pos is None or paddle_pos is None:
         return 'NOOP'
@@ -81,8 +134,10 @@ for e in range(10):
 
     while not done:
         obs_list = []
+        action = int(action_space["FIRE"]["index"])
+        env.step(action)
         for i in range(10):
-            obs, reward, terminated, truncated, info = env.step(int(action_space["NOOP"]["index"]))
+            obs, reward, terminated, truncated, info = env.step(int(action_space["RIGHT"]["index"]))
             done = terminated or truncated
             if done:
                 break
