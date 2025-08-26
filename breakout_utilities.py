@@ -56,7 +56,7 @@ def provided_frame_differences(frames: List[np.ndarray]) -> np.ndarray:
     Args:
         frames (List[np.ndarray]): The input frames
     Returns:
-        np.ndarray: A numpy array that contains all the differences between consecutive frames
+        np.ndarray: A Box(0, 255, (210, 160), np.bool_) numpy array that contains all the differences between consecutive frames
     """
     return functools.reduce(lambda a, b: a + (frames[0] != b), frames[1:], frames[0] != frames[1])
 

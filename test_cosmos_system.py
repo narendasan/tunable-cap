@@ -26,7 +26,7 @@ MODEL = "nvidia/Cosmos-Reason1-7B"
 ENV_NAME = "ALE/Breakout-v5"
 ACTION_HISTORY_LEN = 50
 NUM_FRAMES_FOR_OBS = 3
-NUM_CODEGEN_RETRIES = 100
+NUM_CODEGEN_RETRIES = 50
 NUM_REFINEMENT_EPISODES = 5
 
 def load_action_space_dict(csv_path):
@@ -226,15 +226,16 @@ def evaluate_policy(num_episodes: int = 10) -> List[Eval]:
 
 def get_code_from_markdown(text, *, language: str = "python") -> list[str]:
     """Outputs extracted code blocks from a list of strings of markdown text"""
-    regex = re.compile(
-        r"(?P<start>^```(?P<block_language>(\w|-)+)\n)(?P<code>.*?\n)(?P<end>```)",
-        re.DOTALL | re.MULTILINE,
-    )
-    blocks = [
-        (match.group("block_language"), match.group("code"))
-        for match in regex.finditer(text)
-    ]
-    return [block for block_language, block in blocks if block_language == language]
+    if language:
+        # Pattern for a specific language (e.g., ```python ... ```)
+        pattern = rf"```(?:{language})\n(.*?)```"
+    else:
+        # Pattern for any code block (``` ... ``` or ```language ... ```)
+        pattern = r"```(?:\w+)?\n(.*?)```"
+
+    code_blocks = re.findall(pattern, text, re.DOTALL)
+    return [block.strip() for block in code_blocks]
+
     # out = re.search(r'^```(?:py|python)\n([\s\S]*?)```$', text).group(1)
     # print(out)
     # return [out]
@@ -292,11 +293,12 @@ def generate_and_load_policy(prompt: str, videos: Optional[List[str]]=None) -> s
     retries = NUM_CODEGEN_RETRIES
     while True:
         try:
-            print(policy)
             code = ["from breakout_utilities import *\n", "import cv2\n"] + get_code_from_markdown(policy)
             with open(f"_tmp_{slugify(MODEL).replace('-', '_')}.py", "w") as f:
                 f.writelines(code)
-            with open(f"_tmp_{slugify(MODEL).replace('-', '_')}_{datetime.datetime.now()}.py.log", "w") as f:
+            if not os.path.exists(f"logs/{slugify(MODEL).replace('-', '_')}"):
+                os.makedirs(f"logs/{slugify(MODEL).replace('-', '_')}")
+            with open(f"logs/{slugify(MODEL).replace('-', '_')}/_tmp_{datetime.datetime.now()}.py.log", "w") as f:
                 f.writelines(code)
             gen_mod = importlib.import_module(f"_tmp_{slugify(MODEL).replace('-', '_')}")
             predict_next_action = getattr(gen_mod, "predict_next_action")
@@ -324,8 +326,8 @@ code_prompt = "Given your plan, write the python code that plays the game to max
     + "For example to launch the ball to start the game or if the ball is not visible you should return `1`, to move the paddle left or right you should return `3` or `2` respectively. " \
     + """There should be a case for each action in your function. All of the code necessary must be written by you, you cannot
     call any external functions other than numpy or assume implementation. You cannot assume anything about the configuration of the game.
-    No placeholders are allowed. You must be able to handle all possible game states. It is suggested that you use information across
-    multiple frames to make your decisions. The entry point for your code should be `def predict_next_action(frames: np.ndarray):`"""
+    No placeholder code or examples are allowed. You must be able to handle all possible game states. It is suggested that you use information across
+    multiple frames to make your decisions. The entry point for your code should be `def predict_next_action(frames: np.ndarray) -> int:`"""
 
 code_prompt += "You are provided the following utility functions to help you implement your policy: " + str(UTILITY_SPECS)
 code_prompt += "Only generate python code, do not generate any comments"
@@ -362,17 +364,20 @@ def regenerate_policy(qa_prompt: str, videos: List[str], code_prompt: str):
     _LOGGER.info(f"<PROMPT>: {qa_prompt}")
     _LOGGER.info(f"<RESPONSE>: {regenerate_strategy_answer}")
     retries = NUM_CODEGEN_RETRIES
+    regenerate_prompt = code_prompt
     while True:
-        generate_and_load_policy(code_prompt)
+        generate_and_load_policy(regenerate_prompt)
         try:
             action_ = predict_next_action(obs_history)
             _LOGGER.debug("Test action: " + action_)
             action = int(action_)
             break
         except Exception as e:
+            breakpoint()
             _LOGGER.debug(f"Error occurred while predicting next action: {e}")
             regenerate_prompt = f"While executing your code, I hit to following error: {e}. Please try again."
         if retries == 0:
+            breakpoint()
             _LOGGER.error("Failed to regenerate code")
             exit(-1)
         retries -= 1
@@ -425,14 +430,14 @@ for r in range(NUM_REFINEMENT_EPISODES):
         if len(action_history) == ACTION_HISTORY_LEN and all([action_history[0] == i for i in action_history]):
             env.close()
             _LOGGER.info(f"No meaningful change in actions: {action_history}")
-            regenerate_strategy_prompt = f"I have been seeing your code run the same action too many times repeatedly, Your current score is {score}, you have {lives} lives left, the last few actions you took were {actions}. Video of your code running is provided as well. What issues do you see?"
+            regenerate_strategy_prompt = f"I have been seeing your code run the same action too many times repeatedly, Your current score is {score}, you have {lives} lives left, the last few actions you took were {action_history}. Video of your code running is provided as well. What issues do you see?"
             regenerate_policy(regenerate_strategy_prompt, [f"./policy_rollouts_Breakout-v5/refine_{slugify(MODEL).replace('-', '_')}_policy-episode-0.mp4"], code_prompt)
             # Restart the refinement episode
             env, obs, done, step, score, lives, obs_history, action_history = reset_env()
             _LOGGER.info("Restarting refinement episode")
 
     env.close()
-    refine_prompt = f"Your current score is {score}, you have {lives} lives left, the last few actions you took were {actions}. Video of your code running is provided as well. How can you improve this code?"
+    refine_prompt = f"Your current score is {score}, you have {lives} lives left, the last few actions you took were {action_history}. Video of your code running is provided as well. How can you improve this code?"
     regenerate_policy(refine_prompt, [f"./policy_rollouts_Breakout-v5/refine_{slugify(MODEL).replace('-', '_')}_policy-episode-{r}.mp4"], code_prompt)
     print(f"Refinement Episode {r} completed.")
     breakpoint()
