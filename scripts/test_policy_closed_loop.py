@@ -2,46 +2,27 @@ from typing import List, Dict
 from PIL import Image
 import requests
 from transformers import AutoProcessor, AutoModel
-import torch
 import ale_py
 import gymnasium
-import csv
 import numpy as np
-from breakout_utilities import *
-from _tmp_nvidia_cosmos_reason1_7b_closed_loop import predict_next_action
+from generative_policy_proposals.controller_utils.breakout_utilities import *
+from _tmp_omlab_vlm_r1_qwen2_5vl_3b_ovd_0321_closed_loop_2 import predict_next_action
+
+from generative_policy_proposals._ControllerGenerator import ControllerGenerator, generate_and_load_policy, regenerate_policy
+from generative_policy_proposals import action_spaces, generate_random_rollouts
+from generative_policy_proposals.controller_utils.breakout_utilities import UTILITY_SPECS
+from generative_policy_proposals.action_spaces._action_spaces import BREAKOUT_ACTION_SPACE
+
 
 gymnasium.register_envs(ale_py)
 
-def load_action_space_dict(csv_path):
-    """
-    Reads an action space CSV file and loads it into a dictionary.
-
-    Args:
-        csv_path (str): The path to the CSV file.
-
-    Returns:
-        dict: A dictionary where keys are indices and values are dictionaries containing action type and description.
-    """
-    try:
-        with open(csv_path, mode='r', newline='') as csvfile:
-            reader = csv.DictReader(csvfile)
-            action_space_dict = {row['action'] : {'index':row['index'], 'action': row['action'], 'description': row['description']} for row in reader}
-        return action_space_dict
-    except FileNotFoundError:
-        print(f"Error: The file at {csv_path} does not exist.")
-        return {}
-    except Exception as e:
-        print(f"An error occurred while reading the file: {e}")
-        return {}
-
-action_space = load_action_space_dict("./Breakout-v5-action_space.csv")
-
+action_space = BREAKOUT_ACTION_SPACE
 env_name = "ALE/Breakout-v5"
 env = gymnasium.make(env_name, render_mode="rgb_array", obs_type="grayscale")
 env = gymnasium.wrappers.RecordVideo(
     env,
     episode_trigger=lambda ep: ep % 1 == 0,
-    video_folder="closed_loop_policy_rollouts_" + env_name.split("/")[1],
+    video_folder="videos/closed_loop_policy_rollouts_manual_" + env_name.split("/")[1],
     name_prefix="test_policy"
 )
 

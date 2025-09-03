@@ -36,9 +36,15 @@ torch = [{ index = "pytorch-stable-cu128" }]
 torchvision = [{ index = "pytorch-stable-cu128" }]
 
 [[tool.uv.index]]
-name = "pytorch-stable-cu128"
-url = "https://download.pytorch.org/whl/cu128"
+name = "pytorch-stable-cu118"
+url = "https://download.pytorch.org/whl/cu118"
 explicit = false
+
+[[tool.uv.index]]
+name = "pytorch-stable-cu129"
+url = "https://download.pytorch.org/whl/cu129"
+explicit = false
+
 
 [[tool.uv.dependency-metadata]]
 name = "vllm"
