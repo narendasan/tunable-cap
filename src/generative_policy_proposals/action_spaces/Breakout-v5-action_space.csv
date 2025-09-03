@@ -1,0 +1,5 @@
+index,action,description
+0,NOOP,No operation,do nothing.
+1,FIRE,Press the fire button without updating the joystick position - used to start the game or launch a new ball if none has already spawned
+2,RIGHT,Apply a Δ-movement rightward on the joystick - moves the paddle right
+3,LEFT,Apply a Δ-movement leftward on the joystick - moves the paddle left
