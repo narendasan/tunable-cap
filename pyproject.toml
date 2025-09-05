@@ -32,8 +32,8 @@ index-strategy = "unsafe-best-match"
 package = true
 
 [tool.uv.sources]
-torch = [{ index = "pytorch-stable-cu128" }]
-torchvision = [{ index = "pytorch-stable-cu128" }]
+torch = [{ index = "pytorch-stable-cu118" }]
+torchvision = [{ index = "pytorch-stable-cu118" }]
 
 [[tool.uv.index]]
 name = "pytorch-stable-cu118"

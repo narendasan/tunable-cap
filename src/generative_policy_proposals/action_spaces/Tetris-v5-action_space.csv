@@ -1,0 +1,6 @@
+index,action,description
+0,NOOP,No operation,do nothing.
+1,FIRE,Press the fire button without updating the joystick position - used to rotate the block clockwise
+2,RIGHT,Apply a Δ-movement rightward on the joystick - moves block to the right
+3,LEFT,Apply a Δ-movement leftward on the joystick - moves block to the left
+4,DOWN,Apply a Δ-movement downward on the joystick - moves block down
