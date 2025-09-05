@@ -32,8 +32,8 @@ index-strategy = "unsafe-best-match"
 package = true
 
 [tool.uv.sources]
-torch = [{ index = "pytorch-stable-cu118" }]
-torchvision = [{ index = "pytorch-stable-cu118" }]
+torch = [{ index = "pytorch-stable-cu128" }]
+torchvision = [{ index = "pytorch-stable-cu128" }]
 
 [[tool.uv.index]]
 name = "pytorch-stable-cu118"
@@ -41,8 +41,8 @@ url = "https://download.pytorch.org/whl/cu118"
 explicit = false
 
 [[tool.uv.index]]
-name = "pytorch-stable-cu129"
-url = "https://download.pytorch.org/whl/cu129"
+name = "pytorch-stable-cu128"
+url = "https://download.pytorch.org/whl/cu128"
 explicit = false
 
 

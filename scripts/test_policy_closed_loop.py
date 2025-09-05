@@ -6,7 +6,7 @@ import ale_py
 import gymnasium
 import numpy as np
 from generative_policy_proposals.controller_utils.breakout_utilities import *
-from _tmp_omlab_vlm_r1_qwen2_5vl_3b_ovd_0321_closed_loop_2 import predict_next_action
+from _tmp_kwai_keye_keye_vl_8b_preview_closed_loop import predict_next_action
 
 from generative_policy_proposals._ControllerGenerator import ControllerGenerator, generate_and_load_policy, regenerate_policy
 from generative_policy_proposals import action_spaces, generate_random_rollouts
@@ -33,8 +33,9 @@ for e in range(10):
 
     obs_list = []
     action = 0
-    state = np.zeros(1)
-    weights = np.random.randn(1,10)
+    state = None
+    weights = np.random.randn(4,10)
+    biases = np.random.randn(4,1)
 
     for i in range(3):
         obs, reward, terminated, truncated, info = env.step(int(action_space["NOOP"]["index"]))
@@ -45,7 +46,7 @@ for e in range(10):
         step += 1
 
     while not done:
-        action, state = predict_next_action(obs, weights, state)
+        action, state = predict_next_action(obs, weights, biases, state)
         print(f"Step {step}:, Action: {action}")
         obs, reward, terminated, truncated, info = env.step(action)
         obs_list.pop(0)
