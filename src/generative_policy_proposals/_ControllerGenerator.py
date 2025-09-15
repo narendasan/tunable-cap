@@ -34,7 +34,11 @@ class ControllerGenerator:
             top_p=0.95,
         )
         self.device = device
-        self.model = self.model.to(self.device)
+        self.model = AutoModel.from_pretrained(
+            model_name,
+            torch_dtype=torch.float16,   # saves memory
+            device_map="auto"            # spreads layers between GPU & CPU if needed
+        )
         self.system_prompt = system_prompt
         self.fps = 12
         self.max_pixels = 1920
