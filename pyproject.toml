@@ -5,7 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11,<3.12"
 dependencies = [
-    "torch",
+    "torch==2.7.1",
     "huggingface-hub>=0.34.3",
     "peft>=0.16.0",
     #"flash-attn>=2.8.2",
@@ -41,9 +41,10 @@ url = "https://download.pytorch.org/whl/cu118"
 explicit = false
 
 [[tool.uv.index]]
-name = "pytorch-stable-cu129"
-url = "https://download.pytorch.org/whl/cu129"
+name = "pytorch-stable-cu128"
+url = "https://download.pytorch.org/whl/cu128"
 explicit = false
+
 
 
 [[tool.uv.dependency-metadata]]
