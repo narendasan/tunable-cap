@@ -21,7 +21,7 @@ gymnasium.register_envs(ale_py)
 
 
 class ControllerGenerator:
-    def __init__(self, model="nvidia/Cosmos-Reason1-7B", system_prompt="You are a helpful assistant. Answer the question in the following format: <think>\nyour reasoning\n</think>\n\n<answer>\nyour answer\n</answer>. You are tasked to generate code to play a game based on videos you watch", device="cuda"):
+    def __init__(self, model="Qwen/Qwen2-VL-2B-Instruct", system_prompt="You are a helpful assistant. Answer the question in the following format: <think>\nyour reasoning\n</think>\n\n<answer>\nyour answer\n</answer>. You are tasked to generate code to play a game based on videos you watch", device="cuda"):
         self.model_name = model
         self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(model, trust_remote_code=True, torch_dtype=torch.bfloat16)
         self.processor = AutoProcessor.from_pretrained(model, trust_remote_code=True, use_fast=True)
@@ -39,6 +39,7 @@ class ControllerGenerator:
             torch_dtype=torch.float16,   # saves memory
             device_map="auto"            # spreads layers between GPU & CPU if needed
         )
+        # self.model = self.model.to(self.device)
         self.system_prompt = system_prompt
         self.fps = 12
         self.max_pixels = 1920
