@@ -1,6 +1,4 @@
 from typing import List, Dict, Any, Optional, Tuple, Callable
-import transformers
-from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
 import torch
 import ale_py
 import gymnasium
@@ -22,21 +20,17 @@ gymnasium.register_envs(ale_py)
 
 
 class ControllerGenerator:
-    def __init__(self, model="Qwen/Qwen2-VL-2B-Instruct", system_prompt="You are a helpful assistant. Answer the question in the following format: <think>\nyour reasoning\n</think>\n\n<answer>\nyour answer\n</answer>. You are tasked to generate code to play a game based on videos you watch", device="cuda"):
-        self.model_name = model
-        self.model = Qwen2_5_VLForConditionalGeneration.from_pretrained(model, trust_remote_code=True, torch_dtype=torch.bfloat16)
+    def __init__(
+        self, 
+        model="Qwen/Qwen2-VL-2B-Instruct", 
+        system_prompt="You are a helpful assistant. Answer the question in the following format: <think>\nyour reasoning\n</think>\n\n<answer>\nyour answer\n</answer>. You are tasked to generate code to play a game based on videos you watch", device="cuda"):
+        base_url = "http://127.0.0.1:8000/v1"
+        api_key = "EMPTY"
         self.processor = AutoProcessor.from_pretrained(model, trust_remote_code=True, use_fast=True)
         self.processor.tokenizer.padding_side = "left"
-        self.generation_config = transformers.GenerationConfig(
-            do_sample=True,
-            max_new_tokens=4096,
-            repetition_penalty=1.05,
-            temperature=0.6,
-            top_p=0.95,
-        )
-        self.device = device
-        self.client = OpenAI(base_url = "http://127.0.0.1:8000/v1", api_key = "EMPTY")
         self.model = model
+        self.device = device
+        self.client = OpenAI(base_url, api_key)
         self.system_prompt = system_prompt
         self.fps = 12
         self.max_pixels = 1920
