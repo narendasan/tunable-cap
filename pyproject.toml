@@ -10,7 +10,7 @@ dependencies = [
     "peft>=0.16.0",
     #"flash-attn>=2.8.2",
     "decord>=0.6.0",
-    "transformers",                                                                                             #==4.51.0",
+    "transformers", #==4.51.0",
     "ale-py>=0.11.2",
     "gymnasium[other]>=1.2.0",
     "av>=15.0.0",
@@ -23,6 +23,10 @@ dependencies = [
     "einops>=0.8.1",
     "accelerate>=1.9.0",
     "python-slugify>=8.0.4",
+    "dopamine-rl>=4.1.2",
+    "tyro>=0.9.31",
+    "tensorboard>=2.20.0",
+    "wandb>=0.21.4",
 ]
 
 [tool.uv]

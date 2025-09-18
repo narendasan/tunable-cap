@@ -1,0 +1,36 @@
+{
+  "os":  "Linux-6.8.0-71-generic-x86_64-with-glibc2.39",
+  "python":  "CPython 3.11.12",
+  "startedAt":  "2025-09-18T21:25:04.861824Z",
+  "program":  "/home/naren/tunable-cap/scripts/test_policy_optimization.py",
+  "codePath":  "scripts/test_policy_optimization.py",
+  "codePathLocal":  "scripts/test_policy_optimization.py",
+  "email":  "naren@narendasan.com",
+  "root":  "/home/naren/tunable-cap",
+  "host":  "t-2000",
+  "executable":  "/home/naren/tunable-cap/.venv/bin/python3",
+  "cpu_count":  12,
+  "cpu_count_logical":  24,
+  "gpu":  "NVIDIA GeForce RTX 5090",
+  "gpu_count":  1,
+  "disk":  {
+    "/":  {
+      "total":  "982240026624",
+      "used":  "892924186624"
+    }
+  },
+  "memory":  {
+    "total":  "67136741376"
+  },
+  "gpu_nvidia":  [
+    {
+      "name":  "NVIDIA GeForce RTX 5090",
+      "memoryTotal":  "34190917632",
+      "cudaCores":  21760,
+      "architecture":  "Blackwell",
+      "uuid":  "GPU-5877db18-dd51-d7b5-ff7c-a18020c67bcd"
+    }
+  ],
+  "cudaVersion":  "12.9",
+  "writerId":  "j0poql3o4lgwsjb3ufux6u8v2x7uco36"
+}
