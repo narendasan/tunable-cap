@@ -13,6 +13,7 @@ import os
 import numpy as np
 from generative_policy_proposals._utils import get_code_from_markdown
 import sys
+from openai import OpenAI
 
 _LOGGER = logging.getLogger(__name__)
 logging.basicConfig(level= logging.INFO)
@@ -34,12 +35,8 @@ class ControllerGenerator:
             top_p=0.95,
         )
         self.device = device
-        self.model = AutoModel.from_pretrained(
-            model_name,
-            torch_dtype=torch.float16,   # saves memory
-            device_map="auto"            # spreads layers between GPU & CPU if needed
-        )
-        # self.model = self.model.to(self.device)
+        self.client = OpenAI(base_url = "http://127.0.0.1:8000/v1", api_key = "EMPTY")
+        self.model = model
         self.system_prompt = system_prompt
         self.fps = 12
         self.max_pixels = 1920
