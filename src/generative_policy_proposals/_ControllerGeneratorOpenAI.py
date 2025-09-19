@@ -44,60 +44,92 @@ class ControllerGenerator:
         }]
         #self.current_code_msg = []
 
+    # video original version
+    # def _generate(self, messages: List[Dict[Any, Any]]) -> str:
+    #     _LOGGER.debug(messages)
+    #     text_list = [self.processor.apply_chat_template(
+    #         messages, tokenize=False, add_generation_prompt=True
+    #     )]
+    #     image_inputs, video_inputs = process_vision_info(messages)
+    #     inputs = self.processor(
+    #         text=text_list,
+    #         images=image_inputs,
+    #         videos=video_inputs,
+    #         return_tensors="pt",
+    #         padding=True,
+    #         #**video_kwargs,
+    #     )
+    #     inputs = inputs.to(self.device)
+    #     generated_ids = self.model.generate(**inputs, generation_config=self.generation_config)
+    #     generated_ids_trimmed = [
+    #         out_ids[len(in_ids) :]
+    #         for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+    #     ]
+    #     output_text = self.processor.batch_decode(
+    #         generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
+    #     )
+    #     self.message_history.append({
+    #         "role": "assistant",
+    #         "content": [{
+    #             "type": "text",
+    #             "text": output_text,
+    #         }],
+    #     })
+    #     return output_text
+
+    # OpenAI compatible, text only
     def _generate(self, messages: List[Dict[Any, Any]]) -> str:
-        _LOGGER.debug(messages)
-        text_list = [self.processor.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True
-        )]
-        image_inputs, video_inputs = process_vision_info(messages)
-        inputs = self.processor(
-            text=text_list,
-            images=image_inputs,
-            videos=video_inputs,
-            return_tensors="pt",
-            padding=True,
-            #**video_kwargs,
-        )
-        inputs = inputs.to(self.device)
-        generated_ids = self.model.generate(**inputs, generation_config=self.generation_config)
-        generated_ids_trimmed = [
-            out_ids[len(in_ids) :]
-            for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
-        ]
-        output_text = self.processor.batch_decode(
-            generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
-        )
-        self.message_history.append({
-            "role": "assistant",
-            "content": [{
-                "type": "text",
-                "text": output_text,
-            }],
-        })
-        return output_text
+    _LOGGER.debug(messages)
 
-    def question_answering(self, video_paths: List[str], prompt: str):
-        video_content = [
-            {
-                "type": "video",
-                "video": video_path,
-                "fps": self.fps,
-                "max_pixels": self.max_pixels
-            } for video_path in video_paths
-        ]
+    # 1. No chat_template needed: OpenAI API accepts chat format directly.
+    #    If messages contain parts (text + images), we ignore images/videos for now.
+    oa_messages: List[Dict[str, str]] = []
+    for m in messages:
+        role = m.get("role", "user")
+        content = m.get("content", "")
+        if isinstance(content, list):
+            # flatten to just text parts for now
+            content = "\n".join(
+                p.get("text", "") for p in content if isinstance(p, dict) and p.get("type") == "text"
+            )
+        elif isinstance(content, dict) and content.get("type") == "text":
+            content = content.get("text", "")
+        elif not isinstance(content, str):
+            content = str(content)
+        oa_messages.append({"role": role, "content": content})
 
-        messages = [
-            {
-                "role": "user",
-                "content": [{
-                    "type": "text",
-                    "text": prompt
-                }] + video_content
-            }
-        ]
-        self.message_history += messages
-        output_text = self._generate(self.message_history)
-        return output_text[0]
+    # 2–6. Skip processor/vision/tensors/device/generate:
+    #       the server handles all of that internally.
+
+    # 7. Call the API directly
+    resp = self.client.chat.completions.create(
+        model=self.model_name,
+        messages=oa_messages,
+        temperature=getattr(self, "default_temperature", 0.6),
+        top_p=getattr(self, "default_top_p", 0.95),
+        max_tokens=getattr(self, "default_max_tokens", 4096),
+    )
+
+    output_text = resp.choices[0].message.content if resp.choices else ""
+
+    # 8. Append to history and return
+    self.message_history.append({
+        "role": "assistant",
+        "content": output_text,
+    })
+    return output_text
+
+    # Text only, with video placeholder
+    def question_answering(self, video_paths: List[str], prompt: str) -> str:
+        if video_paths:
+            placeholder = "\n".join(f"[VIDEO:{p}]" for p in video_paths)
+            content = f"{prompt}\n{placeholder}"
+        else:
+        content = prompt
+
+    self.message_history.append({"role": "user", "content": content})
+    return self._generate(self.message_history)
+
 
     def generate_gameplay_code(self, video_paths: List[str], prompt="Generate Python code to play this game based on the video."):
         video_content = [
