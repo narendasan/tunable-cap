@@ -29,7 +29,6 @@ class ControllerGenerator:
         self.processor = AutoProcessor.from_pretrained(model, trust_remote_code=True, use_fast=True)
         self.processor.tokenizer.padding_side = "left"
         self.model = model
-        self.device = device
         self.client = OpenAI(base_url, api_key)
         self.system_prompt = system_prompt
         self.fps = 12
