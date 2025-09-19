@@ -23,11 +23,13 @@ class ControllerGenerator:
     def __init__(
         self, 
         model="Qwen/Qwen2-VL-2B-Instruct", 
-        system_prompt="You are a helpful assistant. Answer the question in the following format: <think>\nyour reasoning\n</think>\n\n<answer>\nyour answer\n</answer>. You are tasked to generate code to play a game based on videos you watch", device="cuda"):
+        system_prompt="You are a helpful assistant. Answer the question in the following format: <think>\n"
+                        "your reasoning\n</think>\n\n"
+                        "<answer>\nyour answer\n</answer>. "
+                        "You are tasked to generate code to play a game based on videos you watch"):
         base_url = "http://127.0.0.1:8000/v1"
         api_key = "EMPTY"
-        self.processor = AutoProcessor.from_pretrained(model, trust_remote_code=True, use_fast=True)
-        self.processor.tokenizer.padding_side = "left"
+        device="cuda"
         self.model = model
         self.client = OpenAI(base_url, api_key)
         self.system_prompt = system_prompt
