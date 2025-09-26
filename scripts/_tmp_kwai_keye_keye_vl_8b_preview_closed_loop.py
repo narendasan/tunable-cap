@@ -13,7 +13,7 @@ class MemoryState:
         self.frame_count = 0
 
 # Added score by hand
-def predict_next_action(frame: np.ndarray, *, model: torch.nn.Module, memory: Optional[MemoryState] = None) -> Tuple[Tuple[int, MemoryState], torch.Tensor]:
+def predict_next_action(frame: np.ndarray, *, model: torch.nn.Module, memory: Optional[MemoryState] = None) -> Tuple[int, MemoryState]:
     if memory is None:
         memory = MemoryState()
 
@@ -47,8 +47,8 @@ def predict_next_action(frame: np.ndarray, *, model: torch.nn.Module, memory: Op
     ])
 
     #weighted_features = weights @ features + biases
-    q_dist = model(torch.Tensor(features).T).to("cpu")
-    q_values = torch.sum(q_dist * model.support, dim=2)
+    q_values = model(torch.Tensor(features).T.to("cuda"))
+    print(q_values)
     action = torch.argmax(q_values, dim=1).cpu().numpy()
     #action = np.argmax(weighted_features)
 
@@ -68,7 +68,7 @@ def predict_next_action(frame: np.ndarray, *, model: torch.nn.Module, memory: Op
     #     return 3, memory
 
     # Added by hand
-    return (action, memory), q_dist
+    return (action, memory), q_values
 
 # Handwrtitten based on generated code:
 def extract_features(frame: np.ndarray, memory: Optional[MemoryState] = None) -> Tuple[np.ndarray, MemoryState]:

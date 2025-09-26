@@ -19,7 +19,6 @@ def provided_is_ball_in_frame(frame: np.ndarray) -> bool:
     vertical_crop = provided_crop_frame(frame)
     crop = vertical_crop[93:-21]
     in_frame = bool(np.any(crop))
-    print(in_frame)
     return in_frame
 
 def provided_get_ball_position(frame: np.ndarray) -> np.ndarray:

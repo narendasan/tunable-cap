@@ -10,7 +10,9 @@ args = Args(
     capture_video=True,
     save_model=True,
     env_id="ALE/Breakout-v5",
-    n_atoms=10,
+    learning_starts=100,
+    train_frequency=2,
+    num_envs=1
 )
 
 optimize_policy(predict_next_action, args)

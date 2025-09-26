@@ -209,6 +209,7 @@ __marimo__/
 policy_rollouts*
 logs
 
-videos
-codegen
-wandb
+videos/
+codegen/
+wandb/
+runs/
