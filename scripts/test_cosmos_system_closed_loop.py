@@ -27,7 +27,7 @@ logging.basicConfig(level=logging.INFO)
 
 gymnasium.register_envs(ale_py)
 
-MODEL = "omlab/VLM-R1-Qwen2.5VL-3B-OVD-0321"
+MODEL = "Kwai-Keye/Keye-VL-8B-Preview"
 ENV_NAME = "ALE/Breakout-v5"
 ACTION_HISTORY_LEN = 50
 NUM_FRAMES_FOR_OBS = 1

@@ -6,21 +6,21 @@ import logging
 import os
 from generative_policy_proposals._ControllerGenerator import ControllerGenerator, generate_and_load_policy, regenerate_policy
 from generative_policy_proposals import action_spaces, generate_random_rollouts
-from generative_policy_proposals.controller_utils.breakout_utilities import UTILITY_SPECS
-from generative_policy_proposals.action_spaces._action_spaces import BREAKOUT_ACTION_SPACE
+from generative_policy_proposals.action_spaces._action_spaces import TETRIS_ACTION_SPACE
 
 _LOGGER = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
 gymnasium.register_envs(ale_py)
 
-MODEL = "Kwai-Keye/Keye-VL-8B-Preview"
-ENV_NAME = "ALE/Breakout-v5"
+MODEL = "omlab/VLM-R1-Qwen2.5VL-3B-OVD-0321"
+ENV_NAME = "ALE/Tetris-v5"
+SIMPLIFIED_ENV_NAME = ENV_NAME.split("/")[-1]
 ACTION_HISTORY_LEN = 50
 NUM_FRAMES_FOR_OBS = 3
 NUM_CODEGEN_RETRIES = 50
 NUM_REFINEMENT_EPISODES = 5
-action_space = BREAKOUT_ACTION_SPACE
+action_space = TETRIS_ACTION_SPACE
 actions = [[act["index"], act["description"]] for a, act in action_space.items()]
 actions_str = str(actions)
 
@@ -33,13 +33,13 @@ actor = ControllerGenerator(
     system_prompt=system_prompt
 )
 
-rollouts = ["./videos/random_policy_rollouts_Breakout-v5/random_policy-episode-{}.mp4".format(i) for i in range(0, 20, 10)]
-visual_recognition_prompt = "Here are a few videos of the game breakout being played, ultimately we want to write some code to play the game. Start by identify all the key elements in this image. Be specific. Use at most 100 words." #ATARI-GPT
+rollouts = [f"./videos/random_policy_rollouts_{SIMPLIFIED_ENV_NAME}/random_policy-episode-{i}.mp4" for i in range(0, 20, 10)]
+visual_recognition_prompt = "Here are a few videos of the game tetris being played, ultimately we want to write some code to play the game. Start by identify all the key elements in this image. Be specific. Use at most 100 words." #ATARI-GPT
 visual_question_answer = actor.question_answering(rollouts, visual_recognition_prompt)
 _LOGGER.info(f"<PROMPT>: {visual_recognition_prompt}")
 _LOGGER.info(f"<RESPONSE>: {visual_question_answer}")
 #breakpoint()
-strategy_recognition_prompt = "The video is no longer relevant, let's start developing a strategy to play the real game. Describe the ideal strategy if you were playing this game. Be specific. Use at most 100 words." #ATARI-GPT
+strategy_recognition_prompt = "The video is no longer relevant, let's start developing a strategy to play the real game. Describe the ideal strategy if you were playing this game. What is the mechanism that increases the score? Be specific. Use at most 100 words." #ATARI-GPT
 strategy_recognition_prompt += "Your available actions are given below in the format `[action] - [description of action]`: " + actions_str
 strategy_question_answer = actor.question_answering([], strategy_recognition_prompt)
 _LOGGER.info(f"<PROMPT>: {strategy_recognition_prompt}")
@@ -62,13 +62,12 @@ code_prompt = "Given your plan, write the python code that plays the game to max
     Box(0, 255, (210, 160), np.uint8) for each frame as input and
     returns the action to take in the next time step.""" \
     + "Your available actions are given below in the format [[<action>, <description>]]: " + actions_str \
-    + "For example to launch the ball to start the game or if the ball is not visible you should return `1`, to move the paddle left or right you should return `3` or `2` respectively. " \
+    + "For example to rotate the block you should return `1`, to move the block left or right you should return `3` or `2` respectively. " \
     + """There should be a case for each action in your function. All of the code necessary must be written by you, you cannot
     call any external functions other than numpy or assume implementation. You cannot assume anything about the configuration of the game.
     No placeholder code or examples are allowed. You must be able to handle all possible game states. It is suggested that you use information across
     multiple frames to make your decisions. The entry point for your code should be `def predict_next_action(frames: np.ndarray) -> int:`"""
 
-code_prompt += "You are provided the following utility functions to help you implement your policy: " + str(UTILITY_SPECS)
 code_prompt += "Only generate python code, do not generate any comments"
 
 predict_next_action, _ = generate_and_load_policy(actor, action_space, code_prompt, exp_name="open_loop")
@@ -147,23 +146,23 @@ for r in range(NUM_REFINEMENT_EPISODES):
             env.close()
             _LOGGER.info(f"No meaningful change in actions: {action_history}")
             regenerate_strategy_prompt = f"I have been seeing your code run the same action too many times repeatedly, Your current score is {score}, you have {lives} lives left, the last few actions you took were {action_history}. Video of your code running is provided as well. What issues do you see?"
-            predict_next_action, _ = regenerate_policy(actor, action_space, regenerate_strategy_prompt, [f"./videos/open_loop_policy_rollouts_Breakout-v5/refine_{slugify(MODEL).replace('-', '_')}_policy-episode-0.mp4"], code_prompt, exp_name="open_loop")
+            predict_next_action, _ = regenerate_policy(actor, action_space, regenerate_strategy_prompt, [f"./videos/open_loop_policy_rollouts_{SIMPLIFIED_ENV_NAME}/refine_{slugify(MODEL).replace('-', '_')}_policy-episode-0.mp4"], code_prompt, exp_name="open_loop")
             # Restart the refinement episode
             env, obs, done, step, score, lives, obs_history, action_history = reset_env()
             _LOGGER.info("Restarting refinement episode")
 
     env.close()
     refine_prompt = f"Your current score is {score}, you have {lives} lives left, the last few actions you took were {action_history}. Video of your code running is provided as well. How can you improve this code?"
-    predict_next_action, _ = regenerate_policy(actor, action_space, refine_prompt, [f"./videos/open_loop_policy_rollouts_Breakout-v5/refine_{slugify(MODEL).replace('-', '_')}_policy-episode-0.mp4"], code_prompt, exp_name="open_loop")
+    predict_next_action, _ = regenerate_policy(actor, action_space, refine_prompt, [f"./videos/open_loop_policy_rollouts_{SIMPLIFIED_ENV_NAME}/refine_{slugify(MODEL).replace('-', '_')}_policy-episode-0.mp4"], code_prompt, exp_name="open_loop")
     print(f"Refinement Episode {r} completed.")
     breakpoint()
-    os.rename(f"./videos/open_loop_policy_rollouts_Breakout-v5/refine_{slugify(MODEL).replace('-', '_')}_policy-episode-0.mp4", f"./policy_rollouts_Breakout-v5/refine_{slugify(MODEL).replace('-', '_')}_policy-episode-{r+10}.mp4")
+    os.rename(f"./videos/open_loop_policy_rollouts_{SIMPLIFIED_ENV_NAME}/refine_{slugify(MODEL).replace('-', '_')}_policy-episode-0.mp4", f"./policy_rollouts_{SIMPLIFIED_ENV_NAME}/refine_{slugify(MODEL).replace('-', '_')}_policy-episode-{r+10}.mp4")
 exit()
 
 evals = evaluate_policy(num_episodes=10)
 print(evals)
 
-rollouts = ["./policy_rollouts_Breakout-v5/eval_policy-episode-{}.mp4".format(i) for i in range(0, 10, 5)]
+rollouts = ["./policy_rollouts_{SIMPLIFIED_ENV_NAME}/eval_policy-episode-{}.mp4".format(i) for i in range(0, 10, 5)]
 visual_recognition_prompt = "Here are some videos of breakout being played with your policy, what are the issues that you can see in the videos?" #ATARI-GPT
 visual_question_answer = actor.question_answering(rollouts, visual_recognition_prompt)
 print(f"<PROMPT>: {visual_recognition_prompt}")
