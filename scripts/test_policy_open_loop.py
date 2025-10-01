@@ -1,3 +1,4 @@
+# test_policy_open_loop.py
 from typing import List, Dict
 from PIL import Image
 import requests
