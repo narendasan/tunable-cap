@@ -4,7 +4,8 @@ import gymnasium
 from slugify import slugify
 import logging
 import os
-from generative_policy_proposals._ControllerGenerator import ControllerGenerator, generate_and_load_policy, regenerate_policy
+# from generative_policy_proposals._ControllerGenerator import ControllerGenerator, generate_and_load_policy, regenerate_policy
+from generative_policy_proposals._ControllerGeneratorOpenAI import ControllerGenerator, generate_and_load_policy, regenerate_policy
 from generative_policy_proposals import action_spaces, generate_random_rollouts
 from generative_policy_proposals.controller_utils.breakout_utilities import UTILITY_SPECS
 from generative_policy_proposals.action_spaces._action_spaces import BREAKOUT_ACTION_SPACE
@@ -14,7 +15,8 @@ logging.basicConfig(level=logging.INFO)
 
 gymnasium.register_envs(ale_py)
 
-MODEL = "omlab/VLM-R1-Qwen2.5VL-3B-OVD-0321"
+# MODEL = "omlab/VLM-R1-Qwen2.5VL-3B-OVD-0321"
+MODEL = "Qwen/Qwen2-VL-2B-Instruct"
 ENV_NAME = "ALE/Breakout-v5"
 ACTION_HISTORY_LEN = 50
 NUM_FRAMES_FOR_OBS = 3

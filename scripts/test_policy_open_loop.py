@@ -11,7 +11,8 @@ from generative_policy_proposals.controller_utils.breakout_utilities import *
 
 from _tmp_omlab_vlm_r1_qwen2_5vl_3b_ovd_0321_open_loop import predict_next_action
 
-from generative_policy_proposals._ControllerGenerator import ControllerGenerator, generate_and_load_policy, regenerate_policy
+# from generative_policy_proposals._ControllerGenerator import ControllerGenerator, generate_and_load_policy, regenerate_policy
+from generative_policy_proposals._ControllerGeneratorOpenAI import ControllerGenerator, generate_and_load_policy, regenerate_policy
 from generative_policy_proposals import action_spaces, generate_random_rollouts
 from generative_policy_proposals.controller_utils.breakout_utilities import UTILITY_SPECS
 from generative_policy_proposals.action_spaces._action_spaces import BREAKOUT_ACTION_SPACE
@@ -23,7 +24,8 @@ env = gymnasium.make(env_name, render_mode="rgb_array", obs_type="grayscale")
 env = gymnasium.wrappers.RecordVideo(
     env,
     episode_trigger=lambda ep: ep % 1 == 0,
-    video_folder="videos/open_loop_policy_rollouts_manual_" + env_name.split("/")[1],
+    video_folder="videos/open_loop_policy_rollouts_manual_2" + env_name.split("/")[1],
+    # added _2 for testing
     name_prefix="test_policy"
 )
 

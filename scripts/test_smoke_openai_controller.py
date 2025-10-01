@@ -1,6 +1,7 @@
 # scripts/test_smoke_openai_controller.py
 from pathlib import Path
 import sys, logging
+import os
 
 # Ensure ../src is importable no matter where you run from
 repo_root = Path(__file__).resolve().parents[1]
@@ -12,9 +13,9 @@ def main():
     logging.basicConfig(level=logging.INFO)
 
     actor = ControllerGenerator(
-        model="Qwen/Qwen2-VL-2B-Instruct",
-        # base_url="http://127.0.0.1:8000/v1",
-        # api_key="EMPTY",
+        model="google/gemma-3-12b-it:free",
+        base_url="https://openrouter.ai/api/v1",
+        api_key=os.getenv("GEMMA3_12B_API_KEY"),
     )
 
     # Quick sanity check (optional; helps catch server/model issues fast)
