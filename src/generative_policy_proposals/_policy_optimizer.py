@@ -82,6 +82,8 @@ class Args:
     """timestep to start learning"""
     train_frequency: int = 4
     """the frequency of training"""
+    eval_frequency: int = 10000
+    """the frequency of evaluation"""
 
 
 def make_env(env_id, seed, idx, capture_video, run_name):
@@ -91,7 +93,8 @@ def make_env(env_id, seed, idx, capture_video, run_name):
             env = gym.wrappers.RecordVideo(
                 env,
                 episode_trigger=lambda ep: ep % 50 == 0,
-                video_folder="videos/closed_loop_policy_optimization_" + env_id.split("/")[1],
+                video_folder="videos/closed_loop_policy_optimization_"
+                + env_id.split("/")[1],
                 name_prefix=slugify(run_name),
             )
         else:
@@ -133,7 +136,7 @@ class QNetwork(nn.Module):
             nn.ReLU(),
             nn.Linear(64, 64),
             nn.ReLU(),
-            nn.Linear(64, env.single_action_space.n)
+            nn.Linear(64, env.single_action_space.n),
         )
 
     def forward(self, x):
@@ -167,7 +170,8 @@ def optimize_policy(
     writer = SummaryWriter(f"runs/{run_name}")
     writer.add_text(
         "hyperparameters",
-        "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
+        "|param|value|\n|-|-|\n%s"
+        % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
     )
 
     # TRY NOT TO MODIFY: seeding
@@ -180,9 +184,14 @@ def optimize_policy(
 
     # env setup
     envs = gym.vector.SyncVectorEnv(
-        [make_env(args.env_id, args.seed + i, i, args.capture_video, run_name) for i in range(args.num_envs)]
+        [
+            make_env(args.env_id, args.seed + i, i, args.capture_video, run_name)
+            for i in range(args.num_envs)
+        ]
     )
-    assert isinstance(envs.single_action_space, gym.spaces.Discrete), "only discrete action space is supported"
+    assert isinstance(envs.single_action_space, gym.spaces.Discrete), (
+        "only discrete action space is supported"
+    )
 
     q_network = QNetwork(envs).to(device)
     optimizer = optim.Adam(q_network.parameters(), lr=args.learning_rate)
@@ -208,15 +217,26 @@ def optimize_policy(
 
     for global_step in range(args.total_timesteps):
         # ALGO LOGIC: put action logic here
-        epsilon = linear_schedule(args.start_e, args.end_e, args.exploration_fraction * args.total_timesteps, global_step)
+        epsilon = linear_schedule(
+            args.start_e,
+            args.end_e,
+            args.exploration_fraction * args.total_timesteps,
+            global_step,
+        )
         if random.random() < epsilon:
-            actions_and_next_memories, q_values = zip(*[q_policy(o, memory=m) for o, m in zip(obs, memories)])
+            actions_and_next_memories, q_values = zip(
+                *[q_policy(o, memory=m) for o, m in zip(obs, memories)]
+            )
             (_, next_memories) = zip(*actions_and_next_memories)
-            actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
+            actions = np.array(
+                [envs.single_action_space.sample() for _ in range(envs.num_envs)]
+            )
         else:
             # q_values = q_network(torch.Tensor(obs).to(device))
             # actions = torch.argmax(q_values, dim=1).cpu().numpy()
-            actions_and_next_memories, q_values = zip(*[q_policy(o, memory=m) for o, m in zip(obs, memories)])
+            actions_and_next_memories, q_values = zip(
+                *[q_policy(o, memory=m) for o, m in zip(obs, memories)]
+            )
             (actions, next_memories) = zip(*actions_and_next_memories)
             actions = actions[0]
             q_values = torch.concat(q_values, dim=0)
@@ -232,9 +252,15 @@ def optimize_policy(
         if "final_info" in infos:
             for info in infos["final_info"]:
                 if info and "episode" in info:
-                    print(f"global_step={global_step}, episodic_return={info['episode']['r']}")
-                    writer.add_scalar("charts/episodic_return", info["episode"]["r"], global_step)
-                    writer.add_scalar("charts/episodic_length", info["episode"]["l"], global_step)
+                    print(
+                        f"global_step={global_step}, episodic_return={info['episode']['r']}"
+                    )
+                    writer.add_scalar(
+                        "charts/episodic_return", info["episode"]["r"], global_step
+                    )
+                    writer.add_scalar(
+                        "charts/episodic_length", info["episode"]["l"], global_step
+                    )
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
         real_next_obs = next_obs.copy()
@@ -245,7 +271,14 @@ def optimize_policy(
                 real_next_obs[idx] = infos["final_observation"][idx]
                 real_next_memories[idx] = memories[idx]
 
-        rb.add((obs, memories), (real_next_obs, real_next_memories), actions, rewards, terminations, infos)
+        rb.add(
+            (obs, memories),
+            (real_next_obs, real_next_memories),
+            actions,
+            rewards,
+            terminations,
+            infos,
+        )
 
         # TRY NOT TO MODIFY: CRUCIAL step easy to overlook
         obs = next_obs
@@ -256,39 +289,82 @@ def optimize_policy(
             if global_step % args.train_frequency == 0:
                 data = rb.sample(args.batch_size)
                 with torch.no_grad():
-                    _, target_q_values = zip(*[target_policy(o.to("cpu").numpy(), memory=m) for o, m in zip(*data.next_observations)])
+                    _, target_q_values = zip(
+                        *[
+                            target_policy(o.to("cpu").numpy(), memory=m)
+                            for o, m in zip(*data.next_observations)
+                        ]
+                    )
                     target_max = torch.concat(target_q_values, dim=0).max(dim=1)[0]
-                    #target_max, _ = target_network(data.next_observations).max(dim=1)
-                    td_target = data.rewards.flatten() + args.gamma * target_max * (1 - data.dones.flatten())
+                    # target_max, _ = target_network(data.next_observations).max(dim=1)
+                    td_target = data.rewards.flatten() + args.gamma * target_max * (
+                        1 - data.dones.flatten()
+                    )
 
-                _, q_values = zip(*[q_policy(o.to("cpu").numpy(), memory=m) for o, m in zip(*data.observations)])
-                old_val = torch.concat(q_values, dim=0).gather(1, data.actions).squeeze()
-                #old_val = q_network(data.observations).gather(1, data.actions).squeeze()
+                _, q_values = zip(
+                    *[
+                        q_policy(o.to("cpu").numpy(), memory=m)
+                        for o, m in zip(*data.observations)
+                    ]
+                )
+                old_val = (
+                    torch.concat(q_values, dim=0).gather(1, data.actions).squeeze()
+                )
+                # old_val = q_network(data.observations).gather(1, data.actions).squeeze()
                 loss = F.mse_loss(td_target, old_val)
 
                 if global_step % 100 == 0:
                     writer.add_scalar("losses/td_loss", loss, global_step)
-                    writer.add_scalar("losses/q_values", old_val.mean().item(), global_step)
+                    writer.add_scalar(
+                        "losses/q_values", old_val.mean().item(), global_step
+                    )
                     print("SPS:", int(global_step / (time.time() - start_time)))
-                    writer.add_scalar("charts/SPS", int(global_step / (time.time() - start_time)), global_step)
+                    writer.add_scalar(
+                        "charts/SPS",
+                        int(global_step / (time.time() - start_time)),
+                        global_step,
+                    )
 
                 # optimize the model
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
 
+            if global_step % args.eval_frequency == 0 and args.save_model:
+                model_path = f"runs/{run_name}/{args.exp_name}.cleanrl_model"
+                torch.save(q_network.state_dict(), model_path)
+                print(f"model saved to {model_path}")
+
+                from generative_policy_proposals._eval import evaluate
+
+                episodic_returns = evaluate(
+                    model_path,
+                    make_env,
+                    args.env_id,
+                    eval_episodes=10,
+                    run_name=f"{run_name}-eval-{global_step}",
+                    policy=q_policy,
+                    device=device,
+                    epsilon=args.end_e,
+                )
+                mean_return = np.mean(episodic_returns)
+                writer.add_scalar("eval/mean_episodic_return", mean_return, global_step)
+
             # update target network
             if global_step % args.target_network_frequency == 0:
-                for target_network_param, q_network_param in zip(target_network.parameters(), q_network.parameters()):
+                for target_network_param, q_network_param in zip(
+                    target_network.parameters(), q_network.parameters()
+                ):
                     target_network_param.data.copy_(
-                        args.tau * q_network_param.data + (1.0 - args.tau) * target_network_param.data
+                        args.tau * q_network_param.data
+                        + (1.0 - args.tau) * target_network_param.data
                     )
 
     if args.save_model:
         model_path = f"runs/{run_name}/{args.exp_name}.cleanrl_model"
         torch.save(q_network.state_dict(), model_path)
         print(f"model saved to {model_path}")
-        from cleanrl_utils.evals.dqn_eval import evaluate
+        from generative_policy_proposals._eval import evaluate
 
         episodic_returns = evaluate(
             model_path,
@@ -296,19 +372,12 @@ def optimize_policy(
             args.env_id,
             eval_episodes=10,
             run_name=f"{run_name}-eval",
-            Model=QNetwork,
+            policy=q_policy,
             device=device,
             epsilon=args.end_e,
         )
         for idx, episodic_return in enumerate(episodic_returns):
             writer.add_scalar("eval/episodic_return", episodic_return, idx)
-
-        if args.upload_model:
-            from cleanrl_utils.huggingface import push_to_hub
-
-            repo_name = f"{args.env_id}-{args.exp_name}-seed{args.seed}"
-            repo_id = f"{args.hf_entity}/{repo_name}" if args.hf_entity else repo_name
-            push_to_hub(args, episodic_returns, repo_id, "DQN", f"runs/{run_name}", f"videos/{run_name}-eval")
 
     envs.close()
     writer.close()

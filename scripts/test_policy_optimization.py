@@ -7,12 +7,15 @@ args = Args(
     track=True,
     wandb_project_name="test_policy_optimizer",
     wandb_entity="narendasan",
+    exp_name="test_policy_optimization_additional_features_normalized_extended_training",
     capture_video=True,
     save_model=True,
     env_id="ALE/Breakout-v5",
-    learning_starts=100,
-    train_frequency=2,
-    num_envs=1
+    num_envs=1,
+    total_timesteps=10000000,
+    learning_starts=80000,
+    eval_frequency=100000,
+    train_frequency=4,
 )
 
 optimize_policy(predict_next_action, args)
