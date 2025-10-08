@@ -134,7 +134,11 @@ class QNetwork(nn.Module):
         self.network = nn.Sequential(
             nn.Linear(10, 64),
             nn.ReLU(),
-            nn.Linear(64, 64),
+            nn.Linear(64, 512),
+            nn.ReLU(),
+            nn.Linear(512, 512),
+            nn.ReLU(),
+            nn.Linear(512, 64),
             nn.ReLU(),
             nn.Linear(64, env.single_action_space.n),
         )
@@ -164,7 +168,7 @@ def optimize_policy(
             sync_tensorboard=True,
             config=vars(args),
             name=run_name,
-            monitor_gym=True,
+            monitor_gym=False,
             save_code=True,
         )
     writer = SummaryWriter(f"runs/{run_name}")
@@ -249,18 +253,14 @@ def optimize_policy(
         next_obs, rewards, terminations, truncations, infos = envs.step(actions)
 
         # TRY NOT TO MODIFY: record rewards for plotting purposes
-        if "final_info" in infos:
-            for info in infos["final_info"]:
-                if info and "episode" in info:
-                    print(
-                        f"global_step={global_step}, episodic_return={info['episode']['r']}"
-                    )
-                    writer.add_scalar(
-                        "charts/episodic_return", info["episode"]["r"], global_step
-                    )
-                    writer.add_scalar(
-                        "charts/episodic_length", info["episode"]["l"], global_step
-                    )
+        if "episode" in infos:
+            print(f"global_step={global_step}, episodic_return={infos['episode']['r']}")
+            writer.add_scalar(
+                "charts/episodic_return", infos["episode"]["r"], global_step
+            )
+            writer.add_scalar(
+                "charts/episodic_length", infos["episode"]["l"], global_step
+            )
 
         # TRY NOT TO MODIFY: save data to reply buffer; handle `final_observation`
         real_next_obs = next_obs.copy()

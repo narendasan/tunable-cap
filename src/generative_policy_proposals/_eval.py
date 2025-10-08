@@ -24,18 +24,21 @@ def evaluate(
     episodic_returns = []
     while len(episodic_returns) < eval_episodes:
         if random.random() < epsilon:
-            actions = np.array([envs.single_action_space.sample() for _ in range(envs.num_envs)])
+            actions = np.array(
+                [envs.single_action_space.sample() for _ in range(envs.num_envs)]
+            )
         else:
-            actions_and_next_memories, q_values = zip(*[policy(o, memory=m) for o, m in zip(obs, memories)])
+            actions_and_next_memories, q_values = zip(
+                *[policy(o, memory=m) for o, m in zip(obs, memories)]
+            )
             (actions, next_memories) = zip(*actions_and_next_memories)
             actions = actions[0]
         next_obs, _, _, _, infos = envs.step(actions)
-        if "final_info" in infos:
-            for info in infos["final_info"]:
-                if "episode" not in info:
-                    continue
-                print(f"eval_episode={len(episodic_returns)}, episodic_return={info['episode']['r']}")
-                episodic_returns += [info["episode"]["r"]]
+        if "episode" in infos:
+            print(
+                f"eval_episode={len(episodic_returns)}, episodic_return={infos['episode']['r']}"
+            )
+            episodic_returns += [infos["episode"]["r"]]
         obs = next_obs
 
     return episodic_returns
