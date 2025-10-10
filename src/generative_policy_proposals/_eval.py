@@ -7,13 +7,11 @@ import torch
 
 
 def evaluate(
-    model_path: str,
     make_env: Callable,
     env_id: str,
     eval_episodes: int,
     run_name: str,
     policy: Callable,
-    device: torch.device = torch.device("cpu"),
     epsilon: float = 0.05,
     capture_video: bool = True,
 ):

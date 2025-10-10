@@ -62,7 +62,7 @@ class Args:
     """the learning rate of the optimizer"""
     num_envs: int = 1
     """the number of parallel game environments"""
-    buffer_size: int = 1000000
+    buffer_size: int = 100000
     """the replay memory buffer size"""
     gamma: float = 0.99
     """the discount factor gamma"""
@@ -98,7 +98,7 @@ def make_env(env_id, seed, idx, capture_video, run_name):
                 name_prefix=slugify(run_name),
             )
         else:
-            env = gym.make(env_id)
+            env = gym.make(env_id, obs_type="grayscale")
         env = gym.wrappers.RecordEpisodeStatistics(env)
 
         env = NoopResetEnv(env, noop_max=30)
@@ -132,15 +132,15 @@ class QNetwork(nn.Module):
         # )
 
         self.network = nn.Sequential(
-            nn.Linear(10, 64),
+            nn.Linear(10, 128),
             nn.ReLU(),
-            nn.Linear(64, 512),
+            nn.Linear(128, 128),
             nn.ReLU(),
-            nn.Linear(512, 512),
+            # nn.Linear(512, 512),
+            # nn.ReLU(),
+            nn.Linear(128, 128),
             nn.ReLU(),
-            nn.Linear(512, 64),
-            nn.ReLU(),
-            nn.Linear(64, env.single_action_space.n),
+            nn.Linear(128, env.single_action_space.n),
         )
 
     def forward(self, x):
@@ -189,7 +189,7 @@ def optimize_policy(
     # env setup
     envs = gym.vector.SyncVectorEnv(
         [
-            make_env(args.env_id, args.seed + i, i, args.capture_video, run_name)
+            make_env(args.env_id, args.seed + i, i, False, run_name)
             for i in range(args.num_envs)
         ]
     )
@@ -338,14 +338,13 @@ def optimize_policy(
                 from generative_policy_proposals._eval import evaluate
 
                 episodic_returns = evaluate(
-                    model_path,
                     make_env,
                     args.env_id,
                     eval_episodes=10,
                     run_name=f"{run_name}-eval-{global_step}",
                     policy=q_policy,
-                    device=device,
                     epsilon=args.end_e,
+                    capture_video=args.capture_video,
                 )
                 mean_return = np.mean(episodic_returns)
                 writer.add_scalar("eval/mean_episodic_return", mean_return, global_step)
@@ -367,13 +366,11 @@ def optimize_policy(
         from generative_policy_proposals._eval import evaluate
 
         episodic_returns = evaluate(
-            model_path,
             make_env,
             args.env_id,
             eval_episodes=10,
             run_name=f"{run_name}-eval",
             policy=q_policy,
-            device=device,
             epsilon=args.end_e,
         )
         for idx, episodic_return in enumerate(episodic_returns):

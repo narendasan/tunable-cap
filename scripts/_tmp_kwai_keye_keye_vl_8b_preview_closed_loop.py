@@ -100,6 +100,7 @@ def predict_next_action(
     #     return 3, memory
 
     # Added by hand
+    # augmented_rewards = paddle[0] - ball_pos[0]
     return (action, memory), q_values
 
 
