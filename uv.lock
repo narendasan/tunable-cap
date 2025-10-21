@@ -696,7 +696,10 @@ requires-dist = [
     { name = "peft", specifier = ">=0.16.0" },
     { name = "python-slugify", specifier = ">=8.0.4" },
     { name = "qwen-vl-utils", extras = ["decord"], specifier = ">=0.0.8" },
+<<<<<<< HEAD
+=======
     { name = "tensorboard", specifier = ">=2.20.0" },
+>>>>>>> upstream/master
     { name = "torch", specifier = "==2.7.1", index = "https://download.pytorch.org/whl/cu128" },
     { name = "torchvision", specifier = "==0.22.1", index = "https://download.pytorch.org/whl/cu128" },
     { name = "transformers" },
@@ -2817,7 +2820,11 @@ wheels = [
 
 [[package]]
 name = "xformers"
+<<<<<<< HEAD
+version = "0.0.32+fde5a2f.d20250915"
+=======
 version = "0.0.32+fde5a2f.d20250822"
+>>>>>>> upstream/master
 source = { git = "https://github.com/facebookresearch/xformers.git?rev=fde5a2fb46e3f83d73e2974a4d12caf526a4203e#fde5a2fb46e3f83d73e2974a4d12caf526a4203e" }
 dependencies = [
     { name = "numpy", marker = "platform_machine == 'x86_64' and sys_platform == 'linux'" },
