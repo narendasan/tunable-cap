@@ -4,8 +4,7 @@ import gymnasium
 from slugify import slugify
 import logging
 import os
-# from generative_policy_proposals._ControllerGenerator import ControllerGenerator, generate_and_load_policy, regenerate_policy
-from generative_policy_proposals._ControllerGeneratorOpenAI import ControllerGenerator, generate_and_load_policy, regenerate_policy
+from generative_policy_proposals._ControllerGenerator import ControllerGenerator, generate_and_load_policy, regenerate_policy
 from generative_policy_proposals import action_spaces, generate_random_rollouts
 from generative_policy_proposals.controller_utils.breakout_utilities import UTILITY_SPECS
 from generative_policy_proposals.action_spaces._action_spaces import BREAKOUT_ACTION_SPACE
