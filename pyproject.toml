@@ -50,7 +50,6 @@ url = "https://download.pytorch.org/whl/cu128"
 explicit = false
 
 
-
 [[tool.uv.dependency-metadata]]
 name = "vllm"
 version = "0.10.0"
